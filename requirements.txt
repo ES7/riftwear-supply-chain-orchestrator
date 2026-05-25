@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+groq
+pydantic
+pydantic-settings
+pandas
+openpyxl
+python-dotenv
+aiofiles

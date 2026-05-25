@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RIFT WEAR — Orchestrator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#0a0a0a; color:#e5e5e5; font-family:'Inter',sans-serif; }
+    .card { background:#141414; border:1px solid #222; border-radius:12px; }
+    .agent-log { border-left:2px solid #6366f1; }
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
+    .stat-val { font-size:1.6rem; font-weight:700; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+    .badge-green { background:#14532d; color:#86efac; }
+    .badge-red   { background:#450a0a; color:#fca5a5; }
+    .badge-yellow{ background:#451a03; color:#fde68a; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <div class="border-b border-neutral-800 px-8 py-4 flex items-center justify-between sticky top-0 bg-neutral-950 z-10">
+    <div>
+      <h1 class="text-lg font-bold tracking-widest text-white">RIFT WEAR</h1>
+      <p class="text-xs text-neutral-500 tracking-wider">SUPPLY CHAIN ORCHESTRATOR v2</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <input id="dropName" type="text" value="Drop 3 - Mumbai"
+        class="bg-neutral-800 border border-neutral-700 text-white text-sm px-3 py-2 rounded-lg w-44"/>
+      <input id="targetUnits" type="number" value="25" placeholder="Units"
+        class="bg-neutral-800 border border-neutral-700 text-white text-sm px-3 py-2 rounded-lg w-20"/>
+      <button onclick="runAll()" id="runBtn"
+        class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2 rounded-lg transition">
+        ⚡ Run All Agents
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Bar -->
+  <div id="kpiBar" class="grid grid-cols-6 gap-px bg-neutral-800 border-b border-neutral-800">
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Total Revenue</p><p class="stat-val text-white mt-1" id="kTotalRev">—</p></div>
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Net Received</p><p class="stat-val text-green-400 mt-1" id="kNetRec">—</p></div>
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Total Expenses</p><p class="stat-val text-red-400 mt-1" id="kExpenses">—</p></div>
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Net Profit</p><p class="stat-val text-yellow-400 mt-1" id="kProfit">—</p></div>
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Total Orders</p><p class="stat-val text-white mt-1" id="kOrders">—</p></div>
+    <div class="bg-neutral-900 px-5 py-4"><p class="text-xs text-neutral-500 uppercase tracking-wider">Units Sold</p><p class="stat-val text-white mt-1" id="kUnits">—</p></div>
+  </div>
+
+  <div class="p-5 grid grid-cols-12 gap-4">
+
+    <!-- Orders Table -->
+    <div class="col-span-8 card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-white uppercase tracking-wider">Order History</h2>
+        <div class="flex gap-2 text-xs">
+          <span class="badge badge-green" id="badgeSite">Site: —</span>
+          <span class="badge badge-yellow" id="badgeCustom">Custom: —</span>
+          <span class="badge" style="background:#1e3a5f;color:#93c5fd;" id="badgeDept">Dept: —</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto max-h-72 overflow-y-auto">
+        <table class="w-full text-xs">
+          <thead class="sticky top-0">
+            <tr class="text-neutral-500 uppercase border-b border-neutral-800">
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Order ID</th>
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Drop</th>
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Type</th>
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Product</th>
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Qty</th>
+              <th class="text-left pb-2 pr-3 bg-neutral-900">Price</th>
+              <th class="text-left pb-2 bg-neutral-900">Profit</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTable" class="divide-y divide-neutral-800/50">
+            <tr><td colspan="7" class="py-6 text-center text-neutral-600">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Products -->
+    <div class="col-span-4 card p-4">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">Products & Margins</h2>
+      <div class="overflow-y-auto max-h-72 space-y-2" id="productsList">
+        <p class="text-neutral-600 text-xs">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Demand Forecast -->
+    <div class="col-span-6 card p-4" id="demandCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">📈 Demand Forecast</h2>
+      <div id="demandContent" class="text-sm text-neutral-300 space-y-2"></div>
+    </div>
+
+    <!-- Seasonal -->
+    <div class="col-span-6 card p-4" id="seasonCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">🗓 Seasonal Analysis</h2>
+      <div id="seasonContent" class="text-sm text-neutral-300 space-y-2"></div>
+    </div>
+
+    <!-- Inventory Health -->
+    <div class="col-span-4 card p-4" id="invCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">📦 Inventory Health</h2>
+      <div id="invContent" class="text-sm text-neutral-300 space-y-2"></div>
+    </div>
+
+    <!-- Purchase Orders -->
+    <div class="col-span-8 card p-4" id="poCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">📋 Purchase Orders — Next Drop</h2>
+      <div id="poContent" class="space-y-3"></div>
+    </div>
+
+    <!-- Supplier Emails -->
+    <div class="col-span-12 card p-4" id="emailCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">📧 Supplier Negotiation Emails</h2>
+      <div id="emailContent" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="col-span-6 card p-4">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">💸 Expenses</h2>
+      <div class="overflow-y-auto max-h-64" id="expensesList">
+        <p class="text-neutral-600 text-xs">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Drop Timeline -->
+    <div class="col-span-6 card p-4" id="calCard" style="display:none">
+      <h2 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">📅 Drop Timing Calendar</h2>
+      <div id="calContent" class="grid grid-cols-3 gap-2"></div>
+    </div>
+
+  </div>
+
+<script>
+const fmt = n => `₹${parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+const api = (url,method="GET",body=null) =>
+  fetch(url,{method,headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):null}).then(r=>r.json());
+
+async function loadSummary(){
+  const s = await api("/api/data/summary");
+  document.getElementById("kTotalRev").textContent  = fmt(s.total_revenue);
+  document.getElementById("kNetRec").textContent    = fmt(s.net_received);
+  document.getElementById("kExpenses").textContent  = fmt(s.total_expenses);
+  document.getElementById("kProfit").textContent    = fmt(s.net_profit);
+  document.getElementById("kOrders").textContent    = s.total_orders;
+  document.getElementById("kUnits").textContent     = s.total_units_sold;
+  document.getElementById("badgeSite").textContent  = `Site: ${s.site_orders}`;
+  document.getElementById("badgeCustom").textContent= `Custom: ${s.custom_orders}`;
+  document.getElementById("badgeDept").textContent  = `Dept: ${s.dept_orders}`;
+}
+
+async function loadOrders(){
+  const rows = await api("/api/data/orders");
+  const tbody = document.getElementById("ordersTable");
+  tbody.innerHTML = rows.map((r,i)=>{
+    const typeColor = r["Order Type"]==="Site"?"text-green-400":r["Order Type"]==="Custom"?"text-yellow-400":"text-blue-400";
+    const profit = parseFloat(r["Profit (₹)"]||0);
+    return `<tr class="hover:bg-neutral-800/30">
+      <td class="py-1.5 pr-3 text-neutral-300 font-mono">${r["Order ID"]||""}</td>
+      <td class="py-1.5 pr-3 text-neutral-400">${(r["Drop Name"]||"").replace("Drop ","D")}</td>
+      <td class="py-1.5 pr-3 ${typeColor} font-medium">${r["Order Type"]||""}</td>
+      <td class="py-1.5 pr-3 text-white">${r["Product(s)"]||""}</td>
+      <td class="py-1.5 pr-3 text-neutral-300">${r["Qty"]||""}</td>
+      <td class="py-1.5 pr-3 text-white">${fmt(r["Selling Price (₹)"])}</td>
+      <td class="py-1.5 ${profit>0?"text-green-400":"text-neutral-500"}">${profit?fmt(profit):"—"}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function loadProducts(){
+  const rows = await api("/api/data/products");
+  const el = document.getElementById("productsList");
+  el.innerHTML = rows.map(r=>{
+    const m = parseFloat(r["Margin %"]||0)*100;
+    const mColor = m>40?"text-green-400":m>25?"text-yellow-400":"text-red-400";
+    return `<div class="p-2 bg-neutral-800/40 rounded-lg">
+      <div class="flex justify-between items-start">
+        <p class="text-white text-xs font-medium">${r["Product Name"]}</p>
+        <span class="${mColor} text-xs font-bold">${m.toFixed(0)}%</span>
+      </div>
+      <p class="text-neutral-500 text-xs">${r["Drop"]} · COGS ${fmt(r["COGS per Unit (₹)"])} · Sell ${fmt(r["Selling Price (₹)"])}</p>
+    </div>`;
+  }).join("");
+}
+
+async function loadExpenses(){
+  const rows = await api("/api/data/expenses");
+  const el = document.getElementById("expensesList");
+  const catColors={"T-Shirts":"text-blue-400","DTF Print":"text-purple-400","Marketing":"text-pink-400","Travel":"text-yellow-400","Domain":"text-neutral-400","Delivery":"text-green-400"};
+  el.innerHTML = `<table class="w-full text-xs"><thead><tr class="text-neutral-500 border-b border-neutral-800">
+    <th class="text-left pb-1 pr-2">Category</th><th class="text-left pb-1 pr-2">Description</th><th class="text-right pb-1">Amount</th>
+  </tr></thead><tbody>`+rows.map(r=>`<tr class="border-b border-neutral-800/50 hover:bg-neutral-800/20">
+    <td class="py-1.5 pr-2 ${catColors[r.Category]||"text-neutral-400"} font-medium">${r.Category}</td>
+    <td class="py-1.5 pr-2 text-neutral-400">${r.Description||""}</td>
+    <td class="py-1.5 text-right text-white">${r["Amount (₹)"]?fmt(r["Amount (₹)"]):"⚠ Fill"}</td>
+  </tr>`).join("")+"</tbody></table>";
+}
+
+async function runAll(){
+  const btn=document.getElementById("runBtn");
+  btn.textContent="⏳ Running agents..."; btn.disabled=true;
+  const dropName=document.getElementById("dropName").value;
+  const targetUnits=document.getElementById("targetUnits").value;
+  try{
+    const r = await api(`/api/agents/run-all?drop_name=${encodeURIComponent(dropName)}&target_units=${targetUnits}`,"POST");
+
+    // Demand
+    const d=r.demand_forecast;
+    document.getElementById("demandCard").style.display="block";
+    document.getElementById("demandContent").innerHTML=`
+      <div class="flex gap-2 flex-wrap mb-2">
+        ${(d.top_selling_products||[]).map(p=>`<span class="badge badge-green">${p}</span>`).join("")}
+      </div>
+      <p><span class="text-neutral-500">Season:</span> <span class="text-yellow-400 font-medium">${d.season_type||"—"}</span> · Recommended drop size: <span class="text-white font-bold">${d.recommended_drop_size} units</span></p>
+      <p><span class="text-neutral-500">Mumbai tips:</span></p>
+      ${(d.mumbai_expansion_tips||[]).map(t=>`<p class="text-neutral-400 text-xs">→ ${t}</p>`).join("")}
+      <div class="mt-2 space-y-1">${(d.urgent_actions||[]).map(a=>`<p class="text-red-400 text-xs">⚠ ${a}</p>`).join("")}</div>`;
+
+    // Seasonal
+    const s=r.seasonal_analysis;
+    document.getElementById("seasonCard").style.display="block";
+    document.getElementById("seasonContent").innerHTML=`
+      <p><span class="text-neutral-500">Current:</span> <span class="text-indigo-400 font-medium">${s.current_season||"—"}</span> · Score: ${s.season_score}/10</p>
+      <p><span class="text-neutral-500">Next drop:</span> <span class="text-green-400 font-bold">${s.next_recommended_drop}</span> (~${s.weeks_to_ideal_launch} weeks)</p>
+      <p><span class="text-neutral-500">Strategy:</span> <span class="text-yellow-400">${s.pricing_strategy}</span></p>
+      <p class="text-indigo-300 italic text-xs mt-1">"${s.marketing_suggestion}"</p>
+      <div class="mt-2 space-y-1">${(s.delivery_recommendations||[]).map(r=>`<p class="text-neutral-400 text-xs">• ${r}</p>`).join("")}</div>`;
+
+    // Calendar
+    if(s.drop_timing_calendar){
+      document.getElementById("calCard").style.display="block";
+      const scoreColor=n=>n>=8?"text-green-400":n>=6?"text-yellow-400":"text-red-400";
+      document.getElementById("calContent").innerHTML=(s.drop_timing_calendar||[]).map(m=>`
+        <div class="p-2 bg-neutral-800/40 rounded-lg">
+          <div class="flex justify-between"><span class="text-xs text-white font-medium">${m.month}</span><span class="${scoreColor(m.score)} text-xs font-bold">${m.score}/10</span></div>
+          <p class="text-neutral-500 text-xs mt-0.5">${m.reason}</p>
+        </div>`).join("");
+    }
+
+    // Inventory
+    const inv=r.inventory_health;
+    document.getElementById("invCard").style.display="block";
+    document.getElementById("invContent").innerHTML=`
+      <p><span class="text-neutral-500">Status:</span> <span class="text-${inv.overall_health==="good"?"green":"yellow"}-400 font-bold uppercase">${inv.overall_health}</span></p>
+      <p><span class="text-neutral-500">Best seller:</span> ${inv.best_seller||"—"}</p>
+      <p><span class="text-neutral-500">Most profitable:</span> ${inv.most_profitable_product||"—"}</p>
+      ${inv.vendor_comparison?`<div class="mt-2 p-2 bg-neutral-800 rounded text-xs">
+        <p class="text-neutral-400">Whiscoop COGS: ${fmt(inv.vendor_comparison.whiscoop_avg_cogs)}/unit</p>
+        <p class="text-neutral-400">OKB COGS: ${fmt(inv.vendor_comparison.okb_avg_cogs)}/unit</p>
+        <p class="text-green-400 font-medium">Saving ${fmt(inv.vendor_comparison.savings_per_unit)}/unit by switching</p>
+      </div>`:""}
+      <div class="mt-2 space-y-1">${(inv.recommendations||[]).map(rec=>`<p class="text-neutral-400 text-xs">• ${rec}</p>`).join("")}</div>`;
+
+    // POs
+    const po=r.purchase_orders;
+    document.getElementById("poCard").style.display="block";
+    document.getElementById("poContent").innerHTML=`
+      <div class="flex gap-4 text-xs mb-3">
+        <span class="text-neutral-500">Total Units: <span class="text-white font-bold">${po.total_units_to_order}</span></span>
+        <span class="text-neutral-500">Est. COGS: <span class="text-red-400 font-bold">${fmt(po.total_cogs_estimate)}</span></span>
+        <span class="text-neutral-500">Est. Revenue: <span class="text-green-400 font-bold">${fmt(po.expected_revenue)}</span></span>
+        <span class="text-neutral-500">Est. Profit: <span class="text-yellow-400 font-bold">${fmt(po.expected_profit)}</span></span>
+      </div>
+      ${(po.purchase_orders||[]).map(o=>`
+        <div class="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+          <div class="flex justify-between mb-2">
+            <span class="text-white font-medium text-xs">${o.po_number} · ${o.vendor}</span>
+            <span class="badge badge-yellow">${o.vendor_type}</span>
+          </div>
+          <table class="w-full text-xs">
+            <thead><tr class="text-neutral-500"><th class="text-left pr-3">Product</th><th class="text-right pr-3">Qty</th><th class="text-right pr-3">Unit Cost</th><th class="text-right">Total</th></tr></thead>
+            <tbody>${(o.items||[]).map(i=>`<tr class="text-neutral-300"><td class="pr-3 py-0.5">${i.product}</td><td class="text-right pr-3">${i.qty}</td><td class="text-right pr-3">${fmt(i.unit_cost)}</td><td class="text-right text-white">${fmt(i.total)}</td></tr>`).join("")}</tbody>
+          </table>
+          <p class="text-right text-white font-bold mt-1 text-xs">Subtotal: ${fmt(o.subtotal)}</p>
+          <p class="text-neutral-500 text-xs mt-1">Delivery: ${o.expected_delivery_days} days · ${o.notes}</p>
+        </div>`).join("")}`;
+
+    // Emails
+    const emails=(r.supplier_negotiations?.emails||[]);
+    if(emails.length){
+      document.getElementById("emailCard").style.display="block";
+      document.getElementById("emailContent").innerHTML=emails.map(e=>`
+        <div class="p-4 bg-neutral-800/40 rounded-xl border border-neutral-700">
+          <div class="flex justify-between mb-2">
+            <p class="text-white font-semibold text-sm">${e.vendor_name}</p>
+            <span class="badge badge-green">Save ${fmt(r.supplier_negotiations.potential_savings_per_drop/emails.length)}/drop</span>
+          </div>
+          <p class="text-indigo-300 text-xs font-medium mb-2">Subject: ${e.subject}</p>
+          <div class="bg-neutral-900 rounded p-3 text-xs text-neutral-400 whitespace-pre-line leading-relaxed max-h-40 overflow-y-auto">${e.body}</div>
+          <div class="flex gap-4 text-xs mt-2">
+            <span class="text-neutral-500">Current: <span class="text-red-400">${e.current_rate}</span></span>
+            <span class="text-neutral-500">Target: <span class="text-green-400">${e.target_rate}</span></span>
+          </div>
+        </div>`).join("");
+    }
+
+  }catch(err){
+    alert("Error: "+err.message);
+  }finally{
+    btn.textContent="⚡ Run All Agents"; btn.disabled=false;
+    loadSummary(); loadOrders();
+  }
+}
+
+// Init
+loadSummary();
+loadOrders();
+loadProducts();
+loadExpenses();
+</script>
+</body>
+</html>
